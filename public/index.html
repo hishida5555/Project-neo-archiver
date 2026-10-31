@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Project Neo Archiver</title>
+    <link rel="stylesheet" href="/ui.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <h1 class="app-header__title">Project Neo Archiver</h1>
+      <div class="app-header__auth">
+        <span id="authState" class="badge badge--muted">checking…</span>
+        <button id="btnRefreshAuth" type="button">Check connection</button>
+      </div>
+    </header>
+    <main class="app-main">
+      <section class="pane" aria-labelledby="remoteTitle">
+        <div class="pane__head">
+          <h2 id="remoteTitle" class="pane__title">Remote projects</h2>
+          <div class="pane__tools">
+            <button id="btnRemoteReload" type="button">Reload</button>
+            <button id="btnRemoteAll" type="button">Select all</button>
+            <button id="btnRemoteNone" type="button">Clear</button>
+            <button id="btnDlSel" type="button" class="accent" disabled>Download selected</button>
+            <button id="btnDlAll" type="button" class="accent" disabled>Download all</button>
+          </div>
+        </div>
+        <ul id="remoteList" class="cards" role="list"></ul>
+      </section>
+      <section class="pane" aria-labelledby="localTitle">
+        <div class="pane__head">
+          <h2 id="localTitle" class="pane__title">Local library</h2>
+          <div class="pane__tools">
+            <button id="btnLocalReload" type="button">Reload</button>
+            <button id="btnLocalAll" type="button">Select all</button>
+            <button id="btnLocalNone" type="button">Clear</button>
+            <button id="btnUlSel" type="button" class="accent" disabled>Upload selected</button>
+          </div>
+        </div>
+        <ul id="localList" class="cards" role="list"></ul>
+      </section>
+      <section class="logpane" aria-labelledby="logTitle">
+        <h2 id="logTitle" class="logpane__title">Log</h2>
+        <pre id="log" class="logpane__body" aria-live="polite"></pre>
+      </section>
+    </main>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

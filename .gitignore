@@ -1,0 +1,6 @@
+library/
+.chrome-profile/
+tmp/
+*.log
+.DS_Store
+node_modules/
