@@ -2,7 +2,7 @@ const $ = (id) => document.getElementById(id);
 const NEO_ORIGIN = 'https://projectneo.adobe.com';
 const absUrl = (u) => (u && u.startsWith('/') ? NEO_ORIGIN + u : u);
 
-const state = { remote: [], local: [], busy: false };
+const state = { remote: [], local: [], busy: false, cancel: false };
 
 const log = (s) => {
   const el = $('log');
@@ -304,6 +304,7 @@ async function refreshLocal() {
 async function download(items) {
   if (state.busy || !items.length) return;
   state.busy = true;
+  state.cancel = false;
   syncButtons();
   log(`download: ${items.length} item(s)`);
   setProg('dlProg', 0, items.length);
@@ -311,6 +312,7 @@ async function download(items) {
   let ok = 0, fail = 0;
   const tStart = performance.now();
   for (const it of items) {
+    if (state.cancel) break;
     cardState('#remoteList', it.uuid, 'working');
     const t0 = performance.now();
     let okItem = false;
@@ -326,9 +328,16 @@ async function download(items) {
     cardState('#remoteList', it.uuid, okItem ? 'done' : 'fail');
     setProg('dlProg', ok + fail, items.length);
   }
+  // 未処理の queued 状態を解除
+  for (const it of items.slice(ok + fail)) cardState('#remoteList', it.uuid, null);
   setProg('dlProg', 0, null);
-  log(`download: done — ${ok} ok, ${fail} failed in ${((performance.now() - tStart) / 1000).toFixed(1)}s`);
-  toast(`${ok} downloaded${fail ? ` · ${fail} failed` : ''}`, fail ? 'fail' : 'ok');
+  if (state.cancel) {
+    log(`download: cancelled — ${ok} ok, ${fail} failed, ${items.length - ok - fail} skipped in ${((performance.now() - tStart) / 1000).toFixed(1)}s`);
+    toast(`download cancelled (${ok + fail}/${items.length} done)`, 'info');
+  } else {
+    log(`download: done — ${ok} ok, ${fail} failed in ${((performance.now() - tStart) / 1000).toFixed(1)}s`);
+    toast(`${ok} downloaded${fail ? ` · ${fail} failed` : ''}`, fail ? 'fail' : 'ok');
+  }
   state.busy = false;
   // 処理中に認証状態が変わっていた場合はここで遅延リロード（再描画はリロード側に任せる）
   if (reloadAfterBusy) { location.reload(); return; }
@@ -339,6 +348,7 @@ async function download(items) {
 async function upload(files) {
   if (state.busy || !files.length) return;
   state.busy = true;
+  state.cancel = false;
   syncButtons();
   log(`upload: ${files.length} item(s) — each becomes a NEW project`);
   setProg('ulProg', 0, files.length);
@@ -346,6 +356,7 @@ async function upload(files) {
   let ok = 0, fail = 0;
   const tStart = performance.now();
   for (const f of files) {
+    if (state.cancel) break;
     cardState('#localList', f, 'working');
     const t0 = performance.now();
     let okItem = false;
@@ -361,12 +372,21 @@ async function upload(files) {
     cardState('#localList', f, okItem ? 'done' : 'fail');
     setProg('ulProg', ok + fail, files.length);
   }
+  // 未処理の queued 状態を解除
+  for (const f of files.slice(ok + fail)) cardState('#localList', f, null);
   setProg('ulProg', 0, null);
-  log(`upload: done — ${ok} ok, ${fail} failed in ${((performance.now() - tStart) / 1000).toFixed(1)}s`);
-  toast(`${ok} uploaded${fail ? ` · ${fail} failed` : ''}`, fail ? 'fail' : 'ok');
+  if (state.cancel) {
+    log(`upload: cancelled — ${ok} ok, ${fail} failed, ${files.length - ok - fail} skipped in ${((performance.now() - tStart) / 1000).toFixed(1)}s`);
+    toast(`upload cancelled (${ok + fail}/${files.length} done)`, 'info');
+  } else {
+    log(`upload: done — ${ok} ok, ${fail} failed in ${((performance.now() - tStart) / 1000).toFixed(1)}s`);
+    toast(`${ok} uploaded${fail ? ` · ${fail} failed` : ''}`, fail ? 'fail' : 'ok');
+  }
   state.busy = false;
   // 処理中に認証状態が変わっていた場合はここで遅延リロード
   if (reloadAfterBusy) { location.reload(); return; }
+  // 一括UL完了時に1回だけ Neo タブを再読み込み（一覧に新規プロジェクトを反映）
+  if (ok > 0) api('/api/neo-reload', {}).catch(() => {});
   await refreshLocal();
   await refreshRemote();
 }
@@ -379,6 +399,8 @@ $('btnLocalNone').addEventListener('click', () => { for (const e of state.local)
 $('btnDlSel').addEventListener('click', () => download(state.remote.filter((e) => e._sel)));
 $('btnDlAll').addEventListener('click', () => download(state.remote));
 $('btnUlSel').addEventListener('click', () => upload(state.local.filter((e) => e._sel).map((e) => e.file)));
+$('btnDlCancel').addEventListener('click', () => { if (state.busy) { state.cancel = true; log('download: cancel requested'); } });
+$('btnUlCancel').addEventListener('click', () => { if (state.busy) { state.cancel = true; log('upload: cancel requested'); } });
 
 // 認証状態の定期チェック。状態が変わっていたら拡張ページ自体をリロードして
 // リモート一覧等を最新に揃える。誤検知防止に2回連続で変化を確認してから行う。

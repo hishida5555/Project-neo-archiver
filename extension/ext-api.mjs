@@ -29,7 +29,9 @@ async function runOp(op, arg) {
         func: neoOp,
         args: [op, arg === undefined ? null : arg, OP_CTX],
       });
-      return r?.result;
+      // タブ遷移中は result が null になり得る（reload直後等）。リトライ対象にする
+      if (r?.result == null) throw new Error('empty result (tab may be navigating)');
+      return r.result;
     } catch (e) {
       lastErr = e;
       await sleep(700);
@@ -120,9 +122,12 @@ async function apiUpload(body) {
       results.push({ file: f, ok: false, error: String(e.message || e) });
     }
   }
-  // 成功があれば Neo タブを再読み込みし、一覧に新規プロジェクトを反映させる
-  if (results.some((r) => r.ok)) await runOp('reload').catch(() => {});
   return { ok: true, results };
+}
+// 一括UL完了後に1回だけ呼び、Neo側の一覧に新規プロジェクトを反映させる
+async function apiNeoReload() {
+  await runOp('reload').catch(() => {});
+  return { ok: true };
 }
 async function apiThumb(body) {
   if (!body.b64 || typeof body.b64 !== 'string' || body.b64.length > 48 * 1024 * 1024) throw new Error('b64 required (<=32MB)');
@@ -136,6 +141,7 @@ const api = {
   'POST /api/download': apiDownload,
   'GET /api/library': apiLibrary,
   'POST /api/upload': apiUpload,
+  'POST /api/neo-reload': apiNeoReload,
   'POST /api/thumb': apiThumb,
 };
 

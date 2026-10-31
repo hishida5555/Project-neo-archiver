@@ -94,6 +94,7 @@ button.accent { background: var(--accent-dim); border-color: var(--accent); }
 }
 .prog__track i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
 .prog__num { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.prog__cancel { font-size: 11px; padding: 1px 10px; }
 #toasts {
   position: fixed;
   right: 14px;
