@@ -59,7 +59,7 @@ async function apiStatus(body) {
 async function apiProjects() {
   const r = await runOp('list');
   if (!r.ok) throw new Error(r.error || 'list failed');
-  return { ok: true, entries: r.entries };
+  return { ok: true, entries: r.entries, diag: r.diag };
 }
 async function apiDownload(body) {
   const items = Array.isArray(body.items) ? body.items.slice(0, 500) : [];

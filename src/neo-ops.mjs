@@ -118,13 +118,15 @@ export async function neoOp(op, arg, C) {
       if (!ownerUserUuid) return { ok: false, error: 'not signed in to Neo (anonymous session)' };
       const entries = [];
       let cursor = null;
+      let diag = null;
       for (let i = 0; i < 50; i++) {
-        const d = await gql(QUERIES.list, { ownerUserUuid, limit: 100, cursor, archived: false });
+        const d = await gql(QUERIES.list, { ownerUserUuid, limit: 500, cursor, archived: false });
+        if (i === 0) diag = { meta: d.projects?.metadata || null }; // 1ページ目のメタ構造を診断用に保持
         entries.push(...(d.projects.entries || []));
         cursor = d.projects.metadata?.nextCursor || null;
         if (!cursor || !(d.projects.entries || []).length) break;
       }
-      return { ok: true, entries };
+      return { ok: true, entries, diag: { ...(diag || {}), pages: undefined, fetched: entries.length } };
     }
     case 'download': {
       await install();

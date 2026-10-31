@@ -56,6 +56,7 @@ export class NeoPage {
   async listProjects() {
     const r = await this.eval('list');
     if (!r.ok) throw new Error(r.error || 'list failed');
+    this.lastListDiag = r.diag || null;
     return r.entries;
   }
   async downloadDocument(uuid) { return this.eval('download', { uuid }); }

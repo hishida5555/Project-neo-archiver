@@ -279,6 +279,11 @@ async function refreshRemote() {
     state.remote = j.entries;
     renderRemote();
     log(`remote: ${j.entries.length} projects`);
+    if (j.diag) log(`  page-meta: ${JSON.stringify(j.diag)}`);
+    if (j.diag?.meta?.totalCount > j.entries.length) {
+      log(`  WARNING: fetched ${j.entries.length} < total ${j.diag.meta.totalCount} — list may be truncated`);
+      toast(`remote list may be truncated (${j.entries.length}/${j.diag.meta.totalCount})`, 'fail');
+    }
   } catch (e) {
     log('projects: ' + e.message);
   }
@@ -304,22 +309,25 @@ async function download(items) {
   setProg('dlProg', 0, items.length);
   for (const it of items) cardState('#remoteList', it.uuid, 'queued');
   let ok = 0, fail = 0;
+  const tStart = performance.now();
   for (const it of items) {
     cardState('#remoteList', it.uuid, 'working');
+    const t0 = performance.now();
     let okItem = false;
     try {
       const j = await api('/api/download', { items: [{ uuid: it.uuid, name: it.name, imageUrl: absUrl(it.imageUrl) }] });
       const r = j.results[0];
       okItem = !!r.ok;
-      log(`  ${r.ok ? 'OK' : 'FAIL'} ${short(it.uuid)} ${r.file || r.error}`);
+      log(`  ${r.ok ? 'OK' : 'FAIL'} ${short(it.uuid)} ${r.file || r.error} (${Math.round(performance.now() - t0)}ms)`);
     } catch (e) {
-      log(`  FAIL ${short(it.uuid)} ${e.message}`);
+      log(`  FAIL ${short(it.uuid)} ${e.message} (${Math.round(performance.now() - t0)}ms)`);
     }
     if (okItem) ok++; else fail++;
     cardState('#remoteList', it.uuid, okItem ? 'done' : 'fail');
     setProg('dlProg', ok + fail, items.length);
   }
   setProg('dlProg', 0, null);
+  log(`download: done — ${ok} ok, ${fail} failed in ${((performance.now() - tStart) / 1000).toFixed(1)}s`);
   toast(`${ok} downloaded${fail ? ` · ${fail} failed` : ''}`, fail ? 'fail' : 'ok');
   state.busy = false;
   // 処理中に認証状態が変わっていた場合はここで遅延リロード（再描画はリロード側に任せる）
@@ -336,22 +344,25 @@ async function upload(files) {
   setProg('ulProg', 0, files.length);
   for (const f of files) cardState('#localList', f, 'queued');
   let ok = 0, fail = 0;
+  const tStart = performance.now();
   for (const f of files) {
     cardState('#localList', f, 'working');
+    const t0 = performance.now();
     let okItem = false;
     try {
       const j = await api('/api/upload', { files: [f] });
       const r = j.results[0];
       okItem = !!r.ok;
-      log(`  ${r.ok ? 'OK' : 'FAIL'} ${r.file} → ${r.ok ? `${r.name || ''} ${r.uuid}${r.renamed ? ` (renamed from ${r.renamed})` : ''}${r.thumb === true ? ' +thumb' : r.thumb === false ? ' (thumb failed)' : ''}` : r.error}`);
+      log(`  ${r.ok ? 'OK' : 'FAIL'} ${r.file} → ${r.ok ? `${r.name || ''} ${r.uuid}${r.renamed ? ` (renamed from ${r.renamed})` : ''}${r.thumb === true ? ' +thumb' : r.thumb === false ? ' (thumb failed)' : ''}` : r.error} (${Math.round(performance.now() - t0)}ms)`);
     } catch (e) {
-      log(`  FAIL ${f} ${e.message}`);
+      log(`  FAIL ${f} ${e.message} (${Math.round(performance.now() - t0)}ms)`);
     }
     if (okItem) ok++; else fail++;
     cardState('#localList', f, okItem ? 'done' : 'fail');
     setProg('ulProg', ok + fail, files.length);
   }
   setProg('ulProg', 0, null);
+  log(`upload: done — ${ok} ok, ${fail} failed in ${((performance.now() - tStart) / 1000).toFixed(1)}s`);
   toast(`${ok} uploaded${fail ? ` · ${fail} failed` : ''}`, fail ? 'fail' : 'ok');
   state.busy = false;
   // 処理中に認証状態が変わっていた場合はここで遅延リロード

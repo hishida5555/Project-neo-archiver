@@ -48,7 +48,7 @@ async function apiStatus(body) {
 }
 async function apiProjects() {
   const entries = await neo.listProjects();
-  return { ok: true, entries };
+  return { ok: true, entries, diag: neo.lastListDiag };
 }
 async function apiDownload(body) {
   const items = Array.isArray(body.items) ? body.items.slice(0, 500) : [];
