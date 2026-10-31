@@ -1,10 +1,10 @@
-# Privacy Policy — Project Neo Archiver
+# Privacy Policy — Neo Archiver
 
 Effective date: 2026-10-31
 
 ## What this extension does
 
-Project Neo Archiver is a local backup tool. It runs on `projectneo.adobe.com`
+Neo Archiver is a local backup tool for Adobe Project Neo. It runs on `projectneo.adobe.com`
 tabs that **you** are signed in to, and downloads/uploads your own project
 documents using the page's own authenticated session.
 
