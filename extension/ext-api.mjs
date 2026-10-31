@@ -1,4 +1,4 @@
-// /api/* エンドポイントの拡張版実装（src/server.mjs のハンドラと同等の振る舞い）。
+// /api/* エンドポイント実装（拡張ページからの fetch シム経由で呼ばれる）。
 // Adobe API 呼び出しは chrome.scripting.executeScript で Neo タブの MAIN world に
 // neoOp を注入して実行し、ファイル保存は File System Access API (ext-lib.mjs) を使う。
 import { neoOp, OP_CTX, NEO_ORIGIN } from '../src/neo-ops.mjs';
@@ -47,7 +47,7 @@ const blobToB64 = async (blob) => {
   return btoa(bin);
 };
 
-// ---- API ハンドラ（server.mjs と同じ応答形）----
+// ---- API ハンドラ ----
 async function apiStatus(body) {
   try {
     // lazy=1: ポーリング用。Neoタブが無い場合は生成せず未接続を返す
@@ -148,7 +148,7 @@ const api = {
 const jres = (o, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
 
-// fetch シムからのエントリポイント。server.mjs のルーティングと同等。
+// fetch シムからのエントリポイント。
 export async function handle(url, init = {}) {
   const u = new URL(url, 'http://x');
   const method = (init.method || 'GET').toUpperCase();

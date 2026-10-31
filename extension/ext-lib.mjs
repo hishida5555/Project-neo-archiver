@@ -1,4 +1,4 @@
-// File System Access API による library/ 相当の実装（server版 src/library.mjs と同等の振る舞い）。
+// File System Access API による library/ 相当の実装。
 // ユーザが選択したフォルダに *.neo.json / thumbs/ / meta.json を書き込む。
 // ディレクトリハンドルは IndexedDB に保持し、権限は都度確認する。
 import { safeName } from '../src/util.mjs';

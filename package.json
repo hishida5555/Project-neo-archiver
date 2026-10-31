@@ -2,13 +2,11 @@
   "name": "project-neo-archiver",
   "version": "0.1.0",
   "private": true,
-  "description": "Local archiver for Adobe Project Neo — download/upload project documents via the signed-in Neo page (no token handling, zero npm dependencies)",
+  "description": "Chrome extension to back up Adobe Project Neo documents to a local folder (runs inside the signed-in Neo page; tokens never leave the browser)",
   "type": "module",
   "engines": { "node": ">=22" },
   "scripts": {
-    "start": "node src/server.mjs",
-    "chrome": "bash tools/launch-chrome.sh",
-    "cli": "node cli.mjs",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "pack": "bash tools/pack-extension.sh"
   }
 }

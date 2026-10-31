@@ -1,17 +1,12 @@
-// ページ内実行オペレーションの共有定義。neoOp() は自己完結関数で、
-// 実行手段を選ばない:
-//   CDP 経路:   opExpr() で式化し Runtime.evaluate に投入（neo-page.mjs）
-//   拡張経路:   chrome.scripting.executeScript({ world:'MAIN', func: neoOp, args })
-// トークンはページ内に留め、どちらの経路でも外部に持ち出さない。
+// ページ内実行オペレーション定義。neoOp() は自己完結関数で、拡張から
+// chrome.scripting.executeScript({ world:'MAIN', func: neoOp, args }) で
+// ログイン済み Neo タブ内に注入・実行される。
+// トークンはページ内に留め、外部には一切持ち出さない。
 export const NEO_ORIGIN = 'https://projectneo.adobe.com';
 export const API_BASE = 'https://project-neo.adobe.io/service/core/api';
 export const GRAPHQL = 'https://project-neo.adobe.io/service/core/graphql';
 export const API_KEY = 'prd-project-neo';
 export const OP_CTX = { apiKey: API_KEY, graphQL: GRAPHQL, apiBase: API_BASE, neoOrigin: NEO_ORIGIN };
-
-// CDP Runtime.evaluate 用の式を生成。neoOp.toString() をページ内で即時呼び出しする。
-export const opExpr = (op, arg) =>
-  `(${neoOp.toString()})(${JSON.stringify(op)},${JSON.stringify(arg === undefined ? null : arg)},${JSON.stringify(OP_CTX)})`;
 
 // ページ内で実行されるオペレーション本体。モジュール外の識別子を参照しないこと
 // （toString() でページ側へ転送されるため）。戻り値は structured clone 可能なものに限る。

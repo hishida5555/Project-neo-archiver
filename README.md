@@ -1,37 +1,36 @@
 # Project Neo Archiver
 
-Adobe Project Neo のプロジェクトデータをローカルにバックアップ・アーカイブするためのツールです。
-作成済みプロジェクトデータのダウンロード／再アップロードが可能です。
+Adobe Project Neo のプロジェクトデータをローカルにバックアップ・アーカイブするための
+**Chrome拡張**です。作成済みプロジェクトデータのダウンロード／再アップロードが可能です。
 
 ## 特徴
 
-- **Chrome拡張版**: Node.js 不要。MV3 拡張として動作し、権限は `scripting` + `projectneo.adobe.com` のみ
-- **ローカルサーバ/CLI版**: Node.js >=22 のみ（npm パッケージ不要。`node --test`/`node:http`/ネイティブ `WebSocket` を使用）
-- **ネイティブ認証**: Adobe API 呼び出しは全て、ログイン済みの `projectneo.adobe.com` ページ上で実行します。認証トークンはサーバ内や管理下のファイルには保持しません（どちらの経路でも共通）
+- **Node.js 不要**: MV3 拡張として完結。権限は `scripting` + `projectneo.adobe.com` のみ
+- **ネイティブ認証**: Adobe API 呼び出しは全て、ログイン済みの `projectneo.adobe.com` ページ上で
+  実行します。認証トークンは拡張側や管理下のファイルには一切保持しません
+- **ローカル保存**: File System Access API で、ユーザが選んだフォルダに
+  `*.neo.json` / `thumbs/` / `meta.json`（sha256・アップロード履歴を記録）を書き込みます
 
 ## 構成
 
 ```
 ├── manifest.json       # Chrome拡張定義 (MV3) — リポジトリ全体が拡張ルート
-├── extension/          # 拡張固有実装 (background/index/ext-shim/ext-api/ext-lib/icons)
-├── src/neo-ops.mjs     # ページ内実行オペレーション共有定義（CDP版・拡張版で共用）
-├── src/neo-page.mjs    # CDP経由のページ実行レイヤ
-├── src/server.mjs      # ローカルサーバ (GUI配信+API、pure node:http、127.0.0.1限定)
-├── src/cdp.mjs         # 最小CDPクライアント (/json/* + WS Runtime.evaluate、依存ゼロ)
-├── src/library.mjs     # library/ + meta.json 管理（sha256記録・パストラバーサル防御）
+├── extension/          # 拡張固有実装
+│   ├── background.js   #   アイコンクリックでアーカイバ画面を開く
+│   ├── index.html      #   アーカイバ画面（public/ の UI を共用）
+│   ├── ext-shim.mjs    #   fetch('/api/*') シム・thumb/ファイル差し替え・Library選択UI
+│   ├── ext-api.mjs     #   APIハンドラ（executeScript で Neo タブ内 neoOp を実行）
+│   ├── ext-lib.mjs     #   File System Access による library 管理
+│   └── icons/
+├── src/neo-ops.mjs     # ページ内実行オペレーション (neoOp: auth/list/download/thumb/create/uploadThumb/reload)
 ├── src/util.mjs        # safeName/uniqueName 等
-├── public/             # GUI (index.html/app.js/ui.css、English UI・両経路で共用)
-├── tools/launch-chrome.sh / .bat   # 専用profile+CDP Chrome 起動（べき等、macOS/Windows）
-├── tools/pack-extension.sh         # 配布用拡張zip生成（CWS提出用・必要ファイルのみ同梱）
-├── cli.mjs             # CLI (status/list/download/upload)
-├── start.command / start.bat       # ダブルクリック起動（macOS Finder / Windows）
+├── public/             # GUI 共用資産 (app.js / ui.css)
+├── tools/pack-extension.sh   # 配布用拡張zip生成（必要ファイルのみ同梱）
 ├── PRIVACY.md          # プライバシーポリシー（CWS提出用）
-└── test/               # node --test
+└── test/               # node --test（util のみ。実動作確認は拡張ページで行う）
 ```
 
 ## 使い方
-
-### Chrome拡張版（推奨・Node.js 不要）
 
 1. `chrome://extensions` を開き、右上の「デベロッパーモード」をON
 2. 「パッケージ化されていない拡張機能を読み込む」→ このリポジトリのルートを選択
@@ -40,52 +39,17 @@ Adobe Project Neo のプロジェクトデータをローカルにバックア�
 5. `projectneo.adobe.com` にログインしたタブがあれば自動で接続されます
    （無い場合はタブを開くので、そこでログインしてください）
 
-画面は Download／Upload のタブ構成です。認証状態はタイトル横のランプ
-（緑=認証済み・黄=匿名・赤=未接続）で示され、状態変化は自動で画面リロードに反映されます。
+### 画面
 
-### ダブルクリック起動（ローカルサーバ版）
-
-Finder で `start.command`（Windows では `start.bat`）をダブルクリックすると、
-専用 Chrome とサーバが起動し、GUI が既定ブラウザで自動的に開きます
-（macOSではターミナルウィンドウを、Windowsでは "Neo Archiver Server" ウィンドウを閉じると停止します）。
-初回のみ、起動した Chrome で `projectneo.adobe.com` にログインしてください。
-
-※ ダウンロードしたファイルは Gatekeeper にブロックされる場合があります。
-  その場合は右クリック →「開く」で実行してください。
-
-### 手動起動（CUI）
-
-```bash
-# 1) CDP 付き Chrome を起動（専用プロファイル・初回のみ Neo ログイン）
-bash tools/launch-chrome.sh            # PORT=9225 既定、--user-data-dir=.chrome-profile
-
-# 2) GUI サーバ起動
-node src/server.mjs                    # http://127.0.0.1:8130
-# オプション: --port 8140 --cdp http://127.0.0.1:9225 --lib ./library
-
-# 3) ブラウザで http://127.0.0.1:8130 を開く
-```
-
-Chrome は `--remote-debugging-port` と専用 `--user-data-dir` で起動されます。
-このプロファイルで `https://projectneo.adobe.com/` に一度ログインすれば、
-以降は起動するだけで認証済みになります（認証はプロファイルに残ります）。
-
-### CLI
-
-```bash
-node cli.mjs status                          # 認証状態確認
-node cli.mjs list                            # プロジェクト一覧
-node cli.mjs download --all                  # 全件 DL
-node cli.mjs download --uuid <uuid>          # 個別 DL
-node cli.mjs upload <file.neo.json>          # UL（重複名は自動サフィックス）
-node cli.mjs upload x.json --no-dedup --no-thumb
-```
+- **Download タブ**: リモートのプロジェクト一覧。カード選択または Download all で一括DL
+- **Upload タブ**: ローカルライブラリ。選択ファイルを再アップロード（常に新規プロジェクト作成。
+  既存名と衝突した場合は `name (2)` の自動サフィックス）
+- **認証ランプ**（タイトル横）: 緑=認証済み・黄=匿名・赤=未接続。クリックで再確認。
+  状態変化はポーリングで検出し、画面を自動リロードします
+- **詳細バルーン**: カードにホバーで uuid・owner・日付・sha256・アップロード履歴を表示
+- **Cancel**: 一括処理中にプログレス行から中断可能
 
 ## アーキテクチャ
-
-拡張版・サーバ版とも、Adobe API 呼び出しの核は `src/neo-ops.mjs` の `neoOp` で、
-ログイン済み Neo ページの MAIN world で実行されます。経路の違いは「どうやって
-ページ内コードを起動し、結果をファイルに落とすか」だけです。
 
 ```
 [拡張ページ] ──executeScript(world:'MAIN')──→ [Neoページ内 neoOp] ←→ [project-neo.adobe.io]
@@ -93,42 +57,19 @@ node cli.mjs upload x.json --no-dedup --no-thumb
      └→ ユーザ選択フォルダ (library/ 相当)
 ```
 
-```
-[ブラウザGUI] ←→ [server.mjs :8130] ←→ [CDP :9225] ←→ [Neoページ内 neoOp] ←→ [Adobe API]
-                     │
-                     └→ library/ (リポジトリ直下)
-```
-
 - ページ内 fetch はブラウザの認証コンテキストで実行されるため、
   IMS ログイン・トークン更新はネイティブアプリの仕組みに完全委譲されます
-- server.mjs は GUI の配信・`library/` ファイル管理・操作の直列化のみを行い、
-  Adobe との直接通信は行いません（トークン非保持＝サーバ側に秘匿情報なし）
-- 拡張版はローカルサーバを立てず、ページ注入＋File System Access のみで完結します
+- ローカルサーバ・CDP・外部プロセスは一切使いません
 
 ## セキュリティ設計
-
-ローカルサーバ版 (server.mjs) の対策：
-
-| 対策 | 実装 |
-|---|---|
-| バインド | `127.0.0.1` のみ（外部から到達不可） |
-| DNSリバインディング | `Host` ヘッダを `127.0.0.1`/`localhost`/`[::1]` に限定（他は403） |
-| CSRF | `Sec-Fetch-Site` が `same-origin`/`none` 以外を拒否（クロスサイト POST を遮断） |
-| CORS | ヘッダ非付与（同一オリジン GUI のみ。クロスオリジン利用を想定しない） |
-| CSP | `default-src 'self'`、`object-src 'none'`、`base-uri 'none'` 等 |
-| トークン | ページ内に留めてサーバ・管理下のファイルに一切保存しない |
-| パストラバーサル | ファイル名は `^[\w.-]+$` 検証＋ディレクトリ containment 確認 |
-| メソッド | GET/HEAD/POST のみ許可 |
-| ボディ制限 | POST は 4MB、thumb b64 は 32MB 上限 |
-
-拡張版の対策：
 
 | 対策 | 実装 |
 |---|---|
 | 権限最小化 | `scripting` + `projectneo.adobe.com` host のみ（`debugger`/全ホスト権限なし） |
 | ページ注入 | パッケージ内コードのみ実行（リモートコードなし。webpack チャンク push は 1 回/ページに制限し過剰実行を防止） |
-| ファイル保存 | File System Access API のユーザ指定フォルダのみ。ファイル名検証はサーバ版と同規則 |
+| ファイル保存 | File System Access API のユーザ指定フォルダのみ。ファイル名は `^[\w.-]+$` 検証 |
 | トークン | ページ内に留めて拡張側・管理下のファイルに一切保存しない |
+| 匿名ガード | `localUser` 未確定の場合は一覧取得を拒否（公開一覧の誤表示を防止） |
 
 ## 注意事項・前提
 
@@ -136,12 +77,19 @@ node cli.mjs upload x.json --no-dedup --no-thumb
   本ツールはページ内実行によりこの懸念を緩和する設計ですが、利用は自己責任で行ってください
 - **上書き不可**: UL は常に新規プロジェクト作成です（REST 上書き経路は存在しません。
   既存プロジェクトへの反映は WebSocket `document_update` のみで、本ツールのスコープ外です）
-- **サインアウト時の挙動**: ページが匿名状態（`localUser` 無し）の場合、一覧取得を拒否します。
-  公開プロジェクト一覧が自分のプロジェクトのように表示されることを防ぐためです
 - **ページ内部構造への依存**: webpack モジュールID等の Adobe 内部実装に依存するため、
   Adobe 側のデプロイで動作しなくなる可能性があります
-- **テスト済み環境**: macOS + Chrome 156 + Node 24（拡張版は Chrome 102+、Windows も概ね同等）
-- `library/`・`.chrome-profile/` は .gitignore 対象（個人データ・認証情報を含むため）
+- **テスト済み環境**: Chrome 102+（macOS・Windows で概ね同等）
+- `library/` は .gitignore 対象（個人データを含むため）
+
+## 配布
+
+```bash
+bash tools/pack-extension.sh     # dist/neo-archiver-ext-<version>.zip を生成
+```
+
+ホワイトリスト方式で必要ファイルのみを同梱します。Chrome Web Store 提出時は
+`PRIVACY.md` をプライバシーポリシーURLとして利用できます。
 
 ## ライセンス
 
