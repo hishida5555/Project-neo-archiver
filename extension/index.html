@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Project Neo Archiver</title>
+    <link rel="stylesheet" href="../public/ui.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="app-header__brand">
+        <h1 class="app-header__title">Project Neo Archiver</h1>
+        <button id="authLamp" class="lamp lamp--checking" type="button" title="checking…" aria-label="connection status"></button>
+      </div>
+      <div class="app-header__auth">
+        <button id="btnLibDir" type="button" class="accent">Select Local Library Folder</button>
+      </div>
+    </header>
+    <main class="app-main">
+      <div class="tabs" role="tablist" aria-label="Operations">
+        <button id="btnTabDl" class="tabs__tab tabs__tab--active" role="tab" aria-selected="true" aria-controls="paneDl">Download</button>
+        <button id="btnTabUl" class="tabs__tab" role="tab" aria-selected="false" aria-controls="paneUl" tabindex="-1">Upload</button>
+      </div>
+      <section id="paneDl" class="pane" role="tabpanel" aria-labelledby="btnTabDl">
+        <div class="pane__head">
+          <h2 class="pane__title">Remote projects</h2>
+          <div class="pane__tools">
+            <button id="btnRemoteReload" type="button">Reload</button>
+            <button id="btnDlSel" type="button" class="accent" disabled>Download selected</button>
+            <button id="btnDlAll" type="button" class="accent" disabled>Download all</button>
+          </div>
+        </div>
+        <div id="dlProg" class="prog" hidden>
+          <div class="prog__track"><i></i></div>
+          <span class="prog__num"></span>
+        </div>
+        <ul id="remoteList" class="cards" role="list"></ul>
+      </section>
+      <section id="paneUl" class="pane pane--ul" role="tabpanel" aria-labelledby="btnTabUl" hidden>
+        <div class="pane__head">
+          <h2 class="pane__title">Local library</h2>
+          <div class="pane__tools">
+            <button id="btnLocalReload" type="button">Reload</button>
+            <button id="btnLocalAll" type="button">Select all</button>
+            <button id="btnLocalNone" type="button">Clear</button>
+            <button id="btnUlSel" type="button" class="accent" disabled>Upload selected</button>
+          </div>
+        </div>
+        <div id="ulProg" class="prog" hidden>
+          <div class="prog__track"><i></i></div>
+          <span class="prog__num"></span>
+        </div>
+        <ul id="localList" class="cards" role="list"></ul>
+      </section>
+      <section class="logpane" aria-labelledby="logTitle">
+        <h2 id="logTitle" class="logpane__title">Log</h2>
+        <pre id="log" class="logpane__body" aria-live="polite"></pre>
+      </section>
+    </main>
+    <div id="toasts" aria-live="polite"></div>
+    <script src="./ext-shim.mjs" type="module"></script>
+    <script src="../public/app.js" type="module"></script>
+  </body>
+</html>

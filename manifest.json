@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Project Neo Archiver",
+  "version": "0.1.0",
+  "description": "Archive Adobe Project Neo documents to a local folder. API calls run inside the signed-in Neo page; tokens never leave the browser.",
+  "minimum_chrome_version": "102",
+  "permissions": ["scripting"],
+  "host_permissions": ["https://projectneo.adobe.com/*"],
+  "background": { "service_worker": "extension/background.js" },
+  "action": { "default_title": "Neo Archiver" },
+  "icons": {
+    "16": "extension/icons/icon16.png",
+    "48": "extension/icons/icon48.png",
+    "128": "extension/icons/icon128.png"
+  }
+}

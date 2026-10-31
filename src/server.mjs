@@ -98,6 +98,8 @@ async function apiUpload(body) {
       results.push({ file: f, ok: false, error: String(e.message || e) });
     }
   }
+  // 成功があれば Neo ページを再読み込みし、一覧に新規プロジェクトを反映させる
+  if (results.some((r) => r.ok)) await neo.eval('reload').catch(() => {});
   return { ok: true, results };
 }
 async function apiThumb(body) {

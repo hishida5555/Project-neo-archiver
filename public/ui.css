@@ -25,17 +25,22 @@ body {
   border-bottom: 1px solid var(--line);
   background: var(--panel);
 }
+.app-header__brand { display: flex; align-items: center; gap: 10px; }
 .app-header__title { font-size: 15px; margin: 0; font-weight: 600; }
-.app-header__auth { display: flex; align-items: center; gap: 8px; }
-.badge {
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 11px;
+.lamp {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
   border: 1px solid var(--line);
+  background: var(--muted);
+  padding: 0;
 }
-.badge--muted { color: var(--muted); }
-.badge--ok { color: var(--ok); border-color: var(--ok); }
-.badge--ng { color: var(--ng); border-color: var(--ng); }
+.lamp--ok { background: var(--ok); border-color: var(--ok); box-shadow: 0 0 6px rgba(70, 160, 105, .6); }
+.lamp--warn { background: #d8a03a; border-color: #d8a03a; }
+.lamp--ng { background: var(--ng); border-color: var(--ng); }
+.lamp--checking { animation: lampPulse 1s infinite alternate; }
+@keyframes lampPulse { from { opacity: .35; } to { opacity: 1; } }
+.app-header__auth { display: flex; align-items: center; gap: 8px; }
 button {
   font: inherit;
   color: var(--text);
@@ -50,11 +55,68 @@ button:disabled { opacity: 0.4; cursor: default; }
 button.accent { background: var(--accent-dim); border-color: var(--accent); }
 .app-main {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr auto;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr auto;
   gap: 12px;
   padding: 12px 16px;
   height: calc(100vh - 54px);
+}
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+}
+.tabs__tab {
+  border: none;
+  background: none;
+  padding: 8px 16px;
+  font-weight: 600;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+}
+.tabs__tab:hover:not(:disabled) { color: var(--text); }
+.tabs__tab--active { color: var(--text); border-bottom-color: var(--accent); }
+.prog {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.prog__track {
+  flex: 1;
+  height: 4px;
+  background: var(--line);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.prog__track i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.prog__num { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+#toasts {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 10;
+}
+.toast {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .4);
+}
+.toast--ok { border-left-color: var(--ok); }
+.toast--fail { border-left-color: var(--ng); }
+.toast--out { opacity: 0; transition: opacity .4s; }
+button:focus-visible, a:focus-visible, .tabs__tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 .pane {
   background: var(--panel);
@@ -64,6 +126,8 @@ button.accent { background: var(--accent-dim); border-color: var(--accent); }
   flex-direction: column;
   min-height: 0;
 }
+.pane[hidden] { display: none; }
+.pane--ul { background: #1b2330; border-color: #2b3546; }
 .pane__head {
   display: flex;
   align-items: center;
@@ -92,8 +156,34 @@ button.accent { background: var(--accent-dim); border-color: var(--accent); }
   flex-direction: column;
   gap: 6px;
   background: var(--bg);
+  cursor: pointer;
 }
 .card--selected { border-color: var(--accent); }
+.card__status { display: none; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
+.card--queued .card__status,
+.card--working .card__status,
+.card--done .card__status,
+.card--fail .card__status { display: flex; }
+.card__status i { display: none; flex: 1; height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; position: relative; }
+.card--working .card__status i { display: block; }
+.card--working .card__status i::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: 0;
+  width: 40%;
+  background: var(--accent);
+  animation: barSlide 1s linear infinite;
+}
+@keyframes barSlide { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+.card--done .card__status { color: var(--ok); }
+.card--fail .card__status { color: var(--ng); }
+.cards__empty {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  text-align: center;
+  padding: 48px 0;
+  font-size: 12px;
+}
 .card__thumb {
   width: 100%;
   aspect-ratio: 16 / 10;

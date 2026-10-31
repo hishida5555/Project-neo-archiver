@@ -1,15 +1,13 @@
 # Project Neo Archiver
 
-Adobe Project Neo のプロジェクトをローカルにバックアップ・アーカイブするための独立ツール。
-ダウンロード／アップロード／ローカル保管に特化しており、オフラインスタジオやエクスポート機能は含みません。
+Adobe Project Neo のプロジェクトデータをローカルにバックアップ・アーカイブするためのツールです。
+作成済みプロジェクトデータのダウンロード／再アップロードが可能です。
 
 ## 特徴
 
 - **依存ゼロ**: Node.js >=22 のみ（npm パッケージ不要。`node --test`/`node:http`/ネイティブ `WebSocket` を使用）
-- **ネイティブ認証委譲**: Adobe API 呼び出しは全て、ログイン済み `projectneo.adobe.com` ページ内で実行（CDP `Runtime.evaluate`）。IMS トークンをサーバ・ファイルに一切保持しない設計
-- **完全な往復**: ダウンロードした `*.neo.json` をそのまま `createProjectWithDocument` で再アップロード（byte-identical 検証済み）
-- **サムネイル保全**: 一覧の `imageUrl` を DL 時に `library/thumbs/` へ保存。UL 時は `presigned-image-url` → `PUT` で新規プロジェクトへ添付
-- **名前重複回避**: UL 時に既存プロジェクト名と衝突した場合 `name (2)`/`(3)`… と自動サフィックス
+- **ネイティブ認証**: Adobe API 呼び出しは全て、ログイン済みの `projectneo.adobe.com` ページ上で実行します。認証トークンはサーバ内や管理下のファイルには保持しません。
+- **データ移動が可能**: ダウンロードした `*.neo.json` を別アカウントでアップロードすることで、公式には機能が用意されていない、アカウント間のプロジェクトデータの移動が可能になります。
 
 ## 構成
 
@@ -22,10 +20,22 @@ Adobe Project Neo のプロジェクトをローカルにバックアップ・�
 ├── public/             # GUI (index.html/app.js/ui.css、English UI)
 ├── tools/launch-chrome.sh   # 専用profile+CDP Chrome 起動（べき等）
 ├── cli.mjs             # CLI (status/list/download/upload)
+├── start.command       # ダブルクリック起動（macOS Finder 用）
 └── test/               # node --test
 ```
 
 ## 使い方
+
+### ダブルクリック起動（推奨）
+
+Finder で `start.command` をダブルクリックすると、専用 Chrome とサーバが起動し、
+GUI が既定ブラウザで自動的に開きます（ターミナルのウィンドウを閉じるとサーバも停止します）。
+初回のみ、起動した Chrome で `projectneo.adobe.com` にログインしてください。
+
+※ ダウンロードしたファイルは Gatekeeper にブロックされる場合があります。
+  その場合は右クリック →「開く」で実行してください。
+
+### 手動起動（CUI）
 
 ```bash
 # 1) CDP 付き Chrome を起動（専用プロファイル・初回のみ Neo ログイン）
@@ -74,7 +84,7 @@ node cli.mjs upload x.json --no-dedup --no-thumb
 | CSRF | `Sec-Fetch-Site` が `same-origin`/`none` 以外を拒否（クロスサイト POST を遮断） |
 | CORS | ヘッダ非付与（同一オリジン GUI のみ。クロスオリジン利用を想定しない） |
 | CSP | `default-src 'self'`、`object-src 'none'`、`base-uri 'none'` 等 |
-| トークン | ページ内に留めてサーバ・ファイルに一切保存しない |
+| トークン | ページ内に留めてサーバ・管理下のファイルに一切保存しない |
 | パストラバーサル | ファイル名は `^[\w.-]+$` 検証＋ディレクトリ containment 確認 |
 | メソッド | GET/HEAD/POST のみ許可 |
 | ボディ制限 | POST は 4MB、thumb b64 は 32MB 上限 |
