@@ -428,7 +428,11 @@ async function checkAuthChange() {
   finally { pollInFlight = false; }
   const sig = sigOf(s);
   if (authSig === null) { authSig = sig; return; }
-  if (sig === authSig) { pendingSig = null; pendingN = 0; return; }
+  // 'none'（到達不能）は認証変化とみなさない。Neoタブがサインイン画面へ
+  // リダイレクトされた等で一時的に unreachable になるたびリロードすると、
+  // 初期化時の非lazyチェックがタブを再生成してリロードループになるため。
+  // 'none' から実値への復帰は authSig を保持しているので引き続き検知できる。
+  if (sig === 'none' || sig === authSig) { pendingSig = null; pendingN = 0; return; }
   if (sig === pendingSig && ++pendingN >= 2) { requestReload(); return; }
   pendingSig = sig; pendingN = 1;
 }

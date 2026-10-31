@@ -10,11 +10,26 @@ const serialize = (fn) => { const p = chain.then(fn, fn); chain = p.catch(() => 
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// 生成した Neo タブの ID。ログアウト時に /my-projects が IMS サインイン等の
+// 別オリジンへリダイレクトされると url クエリにヒットしなくなり、存在するのに
+// 「タブ無し」と誤判定して呼び出しのたびに新規タブが増殖するのを防ぐ。
+let neoTabId = null;
+
 async function neoTab(create = true) {
   const tabs = await chrome.tabs.query({ url: NEO_ORIGIN + '/*' });
-  if (tabs.length) return tabs[0];
+  if (tabs.length) { neoTabId = tabs[0].id; return tabs[0]; }
   if (!create) throw new Error('Neo tab not found');
-  return chrome.tabs.create({ url: NEO_ORIGIN + '/my-projects', active: false });
+  if (neoTabId != null) {
+    try {
+      // オリジン外（サインイン画面等）にいても再利用する。URL を強制的に戻さないのは、
+      // ユーザのサインイン操作途中を奪わないため（注入は権限不足で失敗し、上位で処理される）
+      const t = await chrome.tabs.get(neoTabId);
+      if (t) return t;
+    } catch { neoTabId = null; }
+  }
+  const t = await chrome.tabs.create({ url: NEO_ORIGIN + '/my-projects', active: false });
+  neoTabId = t.id;
+  return t;
 }
 
 // Neo タブ内で neoOp を実行。タブ読み込み中の注入失敗に備えてリトライする。
