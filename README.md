@@ -1,96 +1,108 @@
 # Project Neo Archiver
 
-Adobe Project Neo のプロジェクトデータをローカルにバックアップ・アーカイブするための
-**Chrome拡張**です。作成済みプロジェクトデータのダウンロード／再アップロードが可能です。
+[日本語](README.ja.md) | **English**
 
-## 特徴
+A **Chrome extension** that backs up and archives your Adobe Project Neo
+projects locally. Downloaded projects can be re-uploaded as new projects.
 
-- **Node.js 不要**: MV3 拡張として完結。権限は `scripting` + `projectneo.adobe.com` のみ
-- **ネイティブ認証**: Adobe API 呼び出しは全て、ログイン済みの `projectneo.adobe.com` ページ上で
-  実行します。認証トークンは拡張側や管理下のファイルには一切保持しません
-- **ローカル保存**: File System Access API で、ユーザが選んだフォルダに
-  `*.neo.json` / `thumbs/` / `meta.json`（sha256・アップロード履歴を記録）を書き込みます
+> **Unofficial tool** — not affiliated with or endorsed by Adobe.
 
-## 構成
+## Features
+
+- **No Node.js required**: runs entirely as an MV3 extension. Permissions are
+  limited to `scripting` + the `projectneo.adobe.com` host only
+- **Native authentication**: every Adobe API call runs inside a signed-in
+  `projectneo.adobe.com` page. Auth tokens are never held by the extension
+  or written to any managed file
+- **Local storage**: writes `*.neo.json` / `thumbs/` / `meta.json` (sha256
+  and upload history) into a folder you pick via the File System Access API
+
+## Layout
 
 ```
-├── manifest.json       # Chrome拡張定義 (MV3) — リポジトリ全体が拡張ルート
-├── extension/          # 拡張固有実装
-│   ├── background.js   #   アイコンクリックでアーカイバ画面を開く
-│   ├── index.html      #   アーカイバ画面（public/ の UI を共用）
-│   ├── ext-shim.mjs    #   fetch('/api/*') シム・thumb/ファイル差し替え・Library選択UI
-│   ├── ext-api.mjs     #   APIハンドラ（executeScript で Neo タブ内 neoOp を実行）
-│   ├── ext-lib.mjs     #   File System Access による library 管理
+├── manifest.json       # Chrome extension manifest (MV3) — repo root is the extension root
+├── extension/          # Extension-specific implementation
+│   ├── background.js   #   Opens the archiver page on icon click
+│   ├── index.html      #   Archiver page (shares UI under public/)
+│   ├── ext-shim.mjs    #   fetch('/api/*') shim, thumb/file swap, library-picker UI
+│   ├── ext-api.mjs     #   API handlers (runs neoOp in the Neo tab via executeScript)
+│   ├── ext-lib.mjs     #   Library management via File System Access
 │   └── icons/
-├── src/neo-ops.mjs     # ページ内実行オペレーション (neoOp: auth/list/download/thumb/create/uploadThumb/reload)
-├── src/util.mjs        # safeName/uniqueName 等
-├── public/             # GUI 共用資産 (app.js / ui.css)
-├── tools/pack-extension.sh   # 配布用拡張zip生成（必要ファイルのみ同梱）
-├── PRIVACY.md          # プライバシーポリシー（CWS提出用）
-└── test/               # node --test（util のみ。実動作確認は拡張ページで行う）
+├── src/neo-ops.mjs     # In-page operations (neoOp: auth/list/download/thumb/create/uploadThumb/reload)
+├── src/util.mjs        # safeName/uniqueName etc.
+├── public/             # Shared GUI assets (app.js / ui.css / fonts)
+├── tools/pack-extension.sh   # Builds the distribution zip (whitelist of required files)
+├── PRIVACY.md          # Privacy policy (for Chrome Web Store submission)
+└── test/               # node --test (utils only; behavior is verified on the extension page)
 ```
 
-## 使い方
+## Usage
 
-1. `chrome://extensions` を開き、右上の「デベロッパーモード」をON
-2. 「パッケージ化されていない拡張機能を読み込む」→ このリポジトリのルートを選択
-3. ツールバーの拡張アイコンをクリック → アーカイバ画面がタブで開きます
-4. `Select Local Library Folder` で保存先フォルダを選択・権限を付与
-5. `projectneo.adobe.com` にログインしたタブがあれば自動で接続されます
-   （無い場合はタブを開くので、そこでログインしてください）
+1. Open `chrome://extensions` and turn on **Developer mode** (top right)
+2. **Load unpacked** → select this repository root
+3. Click the extension icon in the toolbar → the archiver page opens in a tab
+4. Click `Select Local Library Folder` and grant permission to a folder
+5. If a signed-in `projectneo.adobe.com` tab exists, it connects automatically
+   (otherwise it opens one — sign in there)
 
-### 画面
+### UI
 
-- **Download タブ**: リモートのプロジェクト一覧。カード選択または Download all で一括DL
-- **Upload タブ**: ローカルライブラリ。選択ファイルを再アップロード（常に新規プロジェクト作成。
-  既存名と衝突した場合は `name (2)` の自動サフィックス）
-- **認証ランプ**（タイトル横）: 緑=認証済み・黄=匿名・赤=未接続。クリックで再確認。
-  状態変化はポーリングで検出し、画面を自動リロードします
-- **詳細バルーン**: カードにホバーで uuid・owner・日付・sha256・アップロード履歴を表示
-- **Cancel**: 一括処理中にプログレス行から中断可能
+- **Download tab**: remote project list. Select cards or use Download all
+- **Upload tab**: local library. Uploads selected files (always creates a NEW
+  project; name collisions get an automatic `name (2)` suffix)
+- **Auth lamp** (next to the title): green = authenticated, amber = anonymous,
+  red = not connected. Click to re-check. State changes are polled and the
+  page reloads automatically
+- **Detail balloon**: hovering a card shows uuid, owner, dates, sha256 and
+  upload history
+- **Cancel**: bulk operations can be interrupted from the progress row
 
-## アーキテクチャ
+## Architecture
 
 ```
-[拡張ページ] ──executeScript(world:'MAIN')──→ [Neoページ内 neoOp] ←→ [project-neo.adobe.io]
-     │ File System Access API                            認証済みfetch
-     └→ ユーザ選択フォルダ (library/ 相当)
+[Extension page] ──executeScript(world:'MAIN')──→ [neoOp inside Neo page] ←→ [project-neo.adobe.io]
+       │ File System Access API                            authenticated fetch
+       └→ user-chosen folder (library/ equivalent)
 ```
 
-- ページ内 fetch はブラウザの認証コンテキストで実行されるため、
-  IMS ログイン・トークン更新はネイティブアプリの仕組みに完全委譲されます
-- ローカルサーバ・CDP・外部プロセスは一切使いません
+- In-page fetch runs inside the browser's auth context, so IMS sign-in and
+  token refresh are fully delegated to the native app machinery
+- No local server, no CDP, no external processes
 
-## セキュリティ設計
+## Security design
 
-| 対策 | 実装 |
+| Measure | Implementation |
 |---|---|
-| 権限最小化 | `scripting` + `projectneo.adobe.com` host のみ（`debugger`/全ホスト権限なし） |
-| ページ注入 | パッケージ内コードのみ実行（リモートコードなし。webpack チャンク push は 1 回/ページに制限し過剰実行を防止） |
-| ファイル保存 | File System Access API のユーザ指定フォルダのみ。ファイル名は `^[\w.-]+$` 検証 |
-| トークン | ページ内に留めて拡張側・管理下のファイルに一切保存しない |
-| 匿名ガード | `localUser` 未確定の場合は一覧取得を拒否（公開一覧の誤表示を防止） |
+| Minimal permissions | `scripting` + `projectneo.adobe.com` host only (no `debugger`, no all-hosts) |
+| Page injection | Only packaged code executes (no remote code; webpack-chunk push limited to once per page to prevent runaway execution) |
+| File writes | User-selected folder via File System Access API only; filenames validated against `^[\w.-]+$` |
+| Tokens | Stay inside the page; never saved by the extension or written to managed files |
+| Anonymous guard | List fetching is refused while `localUser` is unconfirmed (prevents showing the public community list) |
 
-## 注意事項・前提
+## Notes & prerequisites
 
-- **Adobe 利用規約 6.2(d)**: 「提供するインターフェース以外でのサービスアクセス禁止」が最も関連する条項。
-  本ツールはページ内実行によりこの懸念を緩和する設計ですが、利用は自己責任で行ってください
-- **上書き不可**: UL は常に新規プロジェクト作成です（REST 上書き経路は存在しません。
-  既存プロジェクトへの反映は WebSocket `document_update` のみで、本ツールのスコープ外です）
-- **ページ内部構造への依存**: webpack モジュールID等の Adobe 内部実装に依存するため、
-  Adobe 側のデプロイで動作しなくなる可能性があります
-- **テスト済み環境**: Chrome 102+（macOS・Windows で概ね同等）
-- `library/` は .gitignore 対象（個人データを含むため）
+- **Adobe Terms of Use 6.2(d)** ("no access to the services except through
+  provided interfaces") is the most relevant clause. This tool is designed to
+  mitigate that concern by executing inside the page, but use it at your own
+  risk
+- **No overwrite**: uploads always create a new project (no REST overwrite
+  path exists; updating an existing project uses a WebSocket
+  `document_update`, which is out of scope)
+- **Depends on page internals**: relies on Adobe implementation details such
+  as webpack module IDs, so an Adobe deploy may break it
+- **Tested on**: Chrome 102+ (macOS and Windows behave mostly the same)
+- `library/` is gitignored (contains personal data)
 
-## 配布
+## Distribution
 
 ```bash
-bash tools/pack-extension.sh     # dist/neo-archiver-ext-<version>.zip を生成
+bash tools/pack-extension.sh     # produces dist/neo-archiver-ext-<version>.zip
 ```
 
-ホワイトリスト方式で必要ファイルのみを同梱します。Chrome Web Store 提出時は
-`PRIVACY.md` をプライバシーポリシーURLとして利用できます。
+The zip is built from a whitelist of required files only. For Chrome Web
+Store submission, `PRIVACY.md` can be used as the privacy policy document.
 
-## ライセンス
+## License
 
-配布時に決定（現時点では private）。
+[MIT](LICENSE). The bundled font (`public/fonts/`) is under the
+SIL Open Font License 1.1.
