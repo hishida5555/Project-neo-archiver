@@ -104,5 +104,5 @@ Store submission, `PRIVACY.md` can be used as the privacy policy document.
 
 ## License
 
-[MIT](LICENSE). The bundled font (`public/fonts/`) is under the
+[MIT](LICENSE) © 2026 p53*design. The bundled font (`public/fonts/`) is under the
 SIL Open Font License 1.1.

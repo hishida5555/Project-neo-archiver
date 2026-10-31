@@ -95,6 +95,6 @@ bash tools/pack-extension.sh     # dist/neo-archiver-ext-<version>.zip を生成
 
 ## ライセンス
 
-[MIT](LICENSE)。同梱フォント（`public/fonts/`）は SIL Open Font License 1.1。
+[MIT](LICENSE) © 2026 p53*design。同梱フォント（`public/fonts/`）は SIL Open Font License 1.1。
 
 本ツールは非公式であり、Adobe とは無関係です。
