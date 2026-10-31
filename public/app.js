@@ -60,6 +60,14 @@ document.querySelector('.tabs').addEventListener('keydown', (e) => {
   $(TABS[n][0]).focus();
 });
 
+// ---- ログドロワー ----
+$('logTitle').addEventListener('click', () => {
+  const open = $('log').hidden;
+  $('log').hidden = !open;
+  $('logTitle').setAttribute('aria-expanded', String(open));
+  if (open) $('log').scrollTop = $('log').scrollHeight;
+});
+
 // ---- トースト通知 ----
 function toast(msg, kind = 'info') {
   const t = el('div', `toast toast--${kind}`, msg);

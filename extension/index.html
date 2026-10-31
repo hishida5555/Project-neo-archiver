@@ -56,8 +56,10 @@
         <ul id="localList" class="cards" role="list"></ul>
       </section>
       <section class="logpane" aria-labelledby="logTitle">
-        <h2 id="logTitle" class="logpane__title">Log</h2>
-        <pre id="log" class="logpane__body" aria-live="polite"></pre>
+        <h2 class="logpane__head">
+          <button id="logTitle" class="logpane__toggle" type="button" aria-expanded="false" aria-controls="log">Log</button>
+        </h2>
+        <pre id="log" class="logpane__body" aria-live="polite" hidden></pre>
       </section>
     </main>
     <div id="toasts" aria-live="polite"></div>

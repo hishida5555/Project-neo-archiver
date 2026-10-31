@@ -17,6 +17,7 @@ cp manifest.json "$STAGE/"
 cp extension/background.js extension/index.html extension/ext-api.mjs extension/ext-lib.mjs extension/ext-shim.mjs "$STAGE/extension/"
 cp extension/icons/*.png "$STAGE/extension/icons/"
 cp public/app.js public/ui.css "$STAGE/public/"
+cp -R public/fonts "$STAGE/public/"
 cp src/neo-ops.mjs src/util.mjs "$STAGE/src/"
 
 cd "$STAGE"
