@@ -21,28 +21,40 @@ export async function neoOp(op, arg, C) {
 
   // webpack store (__neoStore) と __archToken() をページにインストールし、
   // auth.status 確定（CHECKING_STATUS 以外）まで待機する。
+  // 注意: webpackChunk_N_E への push はページ読み込みごとに1回に限る。
+  // 繰り返し push すると webpack が全チャンクを都度処理してタブが暴走する。
+  // install 自体も共有Promise化し、並行呼び出しで重複実行しない。
   const install = async () => {
-    const tryInstall = () => {
-      try {
-        if (typeof w.__neoReq !== 'function' && Array.isArray(w.webpackChunk_N_E)) {
-          w.webpackChunk_N_E.push([['pneoArch' + Math.random().toString(36).slice(2)], {}, (r) => { w.__neoReq = r; }]);
+    if (w.__neoStore && w.__archToken) return;
+    if (!w.__archInstallP) {
+      w.__archInstallP = (async () => {
+        try {
+          if (!w.__archPushed && typeof w.__neoReq !== 'function' && Array.isArray(w.webpackChunk_N_E)) {
+            w.__archPushed = true;
+            w.webpackChunk_N_E.push([['pneoArch' + Math.random().toString(36).slice(2)], {}, (r) => { w.__neoReq = r; }]);
+          }
+          for (let i = 0; i < 120 && !w.__neoStore; i++) {
+            try { if (typeof w.__neoReq === 'function') w.__neoStore = w.__neoReq(26649).y; } catch {}
+            if (!w.__neoStore) await sleep(250);
+          }
+          if (!w.__neoStore) throw new Error('webpack store unavailable (is a Neo page loaded?)');
+          for (let i = 0; i < 240; i++) {
+            const s = w.__neoStore.getState()?.auth?.status;
+            if (s && s !== 'CHECKING_STATUS') break;
+            await sleep(250);
+          }
+          w.__archToken = async () => {
+            let t = w.__neoStore.getState()?.auth?.tokenInfo?.token;
+            if (!t) { try { t = (await w.__neoReq(92972).A.getAccessTokenAsync())?.token; } catch {} }
+            return t;
+          };
+        } catch (e) {
+          w.__archInstallP = null; // 失敗時は次回呼び出しで再試行
+          throw e;
         }
-        if (typeof w.__neoReq === 'function' && !w.__neoStore) w.__neoStore = w.__neoReq(26649).y;
-      } catch {}
-      return !!w.__neoStore;
-    };
-    for (let i = 0; i < 360 && !tryInstall(); i++) await sleep(250);
-    if (!w.__neoStore) throw new Error('webpack store unavailable (is a Neo page loaded?)');
-    for (let i = 0; i < 360; i++) {
-      const s = w.__neoStore.getState()?.auth?.status;
-      if (s && s !== 'CHECKING_STATUS') break;
-      await sleep(250);
+      })();
     }
-    w.__archToken = async () => {
-      let t = w.__neoStore.getState()?.auth?.tokenInfo?.token;
-      if (!t) { try { t = (await w.__neoReq(92972).A.getAccessTokenAsync())?.token; } catch {} }
-      return t;
-    };
+    await w.__archInstallP;
   };
 
   const neoFetch = async (path, opts = {}) => {

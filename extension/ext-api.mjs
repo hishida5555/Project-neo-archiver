@@ -46,8 +46,10 @@ const blobToB64 = async (blob) => {
 };
 
 // ---- API ハンドラ（server.mjs と同じ応答形）----
-async function apiStatus() {
+async function apiStatus(body) {
   try {
+    // lazy=1: ポーリング用。Neoタブが無い場合は生成せず未接続を返す
+    if (body?.lazy) await neoTab(false);
     const auth = await runOp('auth');
     return { ok: true, cdp: true, auth };
   } catch (e) {
@@ -89,6 +91,9 @@ async function apiUpload(body) {
   const lr = await runOp('list');
   if (!lr.ok) throw new Error(lr.error || 'list failed');
   const remote = lr.entries;
+  // アップロード先アカウント（uploads[] に記録してポップオーバーに出す）
+  let account = null;
+  try { const a = await runOp('auth'); account = a.displayName || a.userUuid || null; } catch {}
   const taken = new Set(remote.map((e) => e.name));
   const meta = await lib.meta();
   const results = [];
@@ -109,7 +114,7 @@ async function apiUpload(body) {
           thumbOk = !!r.ok;
         }
       }
-      await lib.recordUpload(f, { uuid: created.uuid, name, thumbOk });
+      await lib.recordUpload(f, { uuid: created.uuid, name, thumbOk, account });
       results.push({ file: f, ok: true, uuid: created.uuid, name, renamed: name !== requested ? requested : undefined, thumb: thumbOk });
     } catch (e) {
       results.push({ file: f, ok: false, error: String(e.message || e) });
@@ -144,7 +149,7 @@ export async function handle(url, init = {}) {
   try {
     const key = method + ' ' + u.pathname;
     if (api[key]) {
-      const body = method === 'POST' ? JSON.parse(init.body || '{}') : {};
+      const body = method === 'POST' ? JSON.parse(init.body || '{}') : Object.fromEntries(u.searchParams);
       const out = await serialize(() => api[key](body));
       return jres(out);
     }

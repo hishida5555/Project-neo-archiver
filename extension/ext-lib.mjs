@@ -40,12 +40,15 @@ export async function pickDir() {
 }
 
 // readwrite 権限込みのハンドルを返す。未取得なら null。grant=true はユーザ操作内でのみ呼ぶ。
+// queryPermission/requestPermission はハンドルの鮮度やChrome版により失敗し得るため握る。
 export async function ensureDir(grant = false) {
   const h = await storedDir();
   if (!h) return null;
   const opts = { mode: 'readwrite' };
-  if ((await h.queryPermission(opts)) === 'granted') return h;
-  if (grant && (await h.requestPermission(opts)) === 'granted') return h;
+  try { if ((await h.queryPermission(opts)) === 'granted') return h; } catch {}
+  if (grant && typeof h.requestPermission === 'function') {
+    try { if ((await h.requestPermission(opts)) === 'granted') return h; } catch {}
+  }
   return null;
 }
 
@@ -160,10 +163,10 @@ export async function saveThumb({ file, uuid, b64, type }) {
   return name;
 }
 
-export async function recordUpload(file, { uuid, name, thumbOk }) {
+export async function recordUpload(file, { uuid, name, thumbOk, account }) {
   const m = await readMeta();
   if (!m.entries[file]) return;
-  (m.entries[file].uploads ||= []).push({ at: new Date().toISOString(), uuid, name, thumb: thumbOk ?? null });
+  (m.entries[file].uploads ||= []).push({ at: new Date().toISOString(), uuid, name, thumb: thumbOk ?? null, account: account || null });
   await writeMeta(m);
 }
 

@@ -18,6 +18,12 @@ const api = async (path, body) => {
 };
 
 const short = (u) => (u ? u.slice(0, 8) + '…' : '-');
+const fmtBytes = (n) => {
+  if (n == null) return '-';
+  if (n < 1024) return n + ' B';
+  if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1048576).toFixed(1) + ' MB';
+};
 const fmtDate = (s) => {
   if (!s) return '-';
   const d = new Date(s);
@@ -122,6 +128,35 @@ function cardStatusEl() {
   return st;
 }
 
+// ホバー詳細バルーン。カードの右側（入らなければ左側）に fixed で浮かせる。
+// pointer-events:none なので選択クリックを邪魔しない。
+const balloon = el('div', 'balloon');
+balloon.id = 'cardBalloon';
+balloon.hidden = true;
+document.body.append(balloon);
+function showBalloon(card, lines) {
+  balloon.textContent = '';
+  for (const t of lines.filter(Boolean)) balloon.append(el('div', 'balloon__line', t));
+  const r = card.getBoundingClientRect();
+  const bw = 240;
+  let x = r.right + 8, side = 'r';
+  if (x + bw > innerWidth - 8) { x = r.left - bw - 8; side = 'l'; }
+  if (x < 8) { x = Math.min(Math.max(8, r.left), innerWidth - bw - 8); side = 'b'; }
+  balloon.hidden = false;
+  let y = r.top;
+  const bh = balloon.offsetHeight;
+  if (y + bh > innerHeight - 8) y = Math.max(8, innerHeight - bh - 8);
+  balloon.style.left = x + 'px';
+  balloon.style.top = y + 'px';
+  balloon.dataset.side = side;
+}
+function hideBalloon() { balloon.hidden = true; }
+function bindBalloon(card, lines) {
+  card.addEventListener('mouseenter', () => showBalloon(card, lines));
+  card.addEventListener('mouseleave', hideBalloon);
+}
+document.addEventListener('scroll', hideBalloon, true);
+
 function renderRemote() {
   const ul = $('remoteList');
   ul.textContent = '';
@@ -144,6 +179,14 @@ function renderRemote() {
     dl1.addEventListener('click', () => download([e]));
     row.append(dl1);
     li.append(row, cardStatusEl());
+    bindBalloon(li, [
+      e.name || '(untitled)',
+      `uuid ${e.uuid}`,
+      e.owner?.adobeUserDisplayName ? `owner ${e.owner.adobeUserDisplayName}` : null,
+      `created ${fmtDate(e.insertedAt)} · updated ${fmtDate(e.updatedAt)}`,
+      e.tags?.length ? `tags ${e.tags.join(', ')}` : null,
+      e.documentFrameSize ? `frame ${e.documentFrameSize.width}×${e.documentFrameSize.height}` : null,
+    ]);
     selectable(li, e, syncButtons);
     ul.append(li);
   }
@@ -174,11 +217,26 @@ function renderLocal() {
     ul1.addEventListener('click', () => upload([e.file]));
     row.append(ul1);
     li.append(row, cardStatusEl());
+    const upList = e.uploads || [];
+    bindBalloon(li, [
+      e.file,
+      `uuid ${e.uuid || '-'}`,
+      e.sha256 ? `sha256 ${e.sha256.slice(0, 12)}…` : null,
+      `${fmtBytes(e.bytes)} · downloaded ${fmtDate(e.savedAt)}`,
+      `uploads: ${upList.length}`,
+      ...upList.slice(-4).reverse().map((u) =>
+        `  ${fmtDate(u.at)} → ${u.account || short(u.uuid)} ${u.name || ''}${u.thumb === false ? ' (thumb NG)' : ''}`),
+      upList.length > 4 ? `  …and ${upList.length - 4} more` : null,
+    ]);
     selectable(li, e, syncButtons);
     ul.append(li);
   }
   syncButtons();
 }
+
+// 認証状態シグネチャ: signedIn:userUuid:hasToken。変化したら画面をリロードする。
+let authSig = null;
+const sigOf = (s) => (s?.auth ? `${!!s.auth.signedIn}:${s.auth.userUuid || ''}:${!!s.auth.hasToken}` : 'none');
 
 async function refreshAuth() {
   const b = $('authLamp');
@@ -186,6 +244,14 @@ async function refreshAuth() {
   b.title = 'checking…';
   try {
     const s = await api('/api/status');
+    const sig = sigOf(s);
+    // 状態変化を検出（ポーリング以外の経路でも）→ 画面リロードで一覧を揃える。
+    // 一括処理中は発火を遅延させる（reloadAfterBusy）。
+    if (authSig !== null && sig !== authSig) {
+      if (!state.busy) { location.reload(); return s; }
+      reloadAfterBusy = true;
+    }
+    authSig = sig;
     if (s.auth?.signedIn && s.auth.hasToken) {
       b.className = 'lamp lamp--ok';
       b.title = `authenticated — ${s.auth.displayName || s.auth.userUuid} — click to re-check`;
@@ -256,6 +322,8 @@ async function download(items) {
   setProg('dlProg', 0, null);
   toast(`${ok} downloaded${fail ? ` · ${fail} failed` : ''}`, fail ? 'fail' : 'ok');
   state.busy = false;
+  // 処理中に認証状態が変わっていた場合はここで遅延リロード（再描画はリロード側に任せる）
+  if (reloadAfterBusy) { location.reload(); return; }
   await refreshLocal();
 }
 
@@ -286,6 +354,8 @@ async function upload(files) {
   setProg('ulProg', 0, null);
   toast(`${ok} uploaded${fail ? ` · ${fail} failed` : ''}`, fail ? 'fail' : 'ok');
   state.busy = false;
+  // 処理中に認証状態が変わっていた場合はここで遅延リロード
+  if (reloadAfterBusy) { location.reload(); return; }
   await refreshLocal();
   await refreshRemote();
 }
@@ -298,6 +368,31 @@ $('btnLocalNone').addEventListener('click', () => { for (const e of state.local)
 $('btnDlSel').addEventListener('click', () => download(state.remote.filter((e) => e._sel)));
 $('btnDlAll').addEventListener('click', () => download(state.remote));
 $('btnUlSel').addEventListener('click', () => upload(state.local.filter((e) => e._sel).map((e) => e.file)));
+
+// 認証状態の定期チェック。状態が変わっていたら拡張ページ自体をリロードして
+// リモート一覧等を最新に揃える。誤検知防止に2回連続で変化を確認してから行う。
+// lazy=1 で Neo タブの自動生成を抑止する。一括処理中は検出だけ行い、
+// 発火は処理終了まで遅延させる（reloadAfterBusy → download/upload 末尾で消費）。
+let pendingSig = null, pendingN = 0, reloadAfterBusy = false, pollInFlight = false;
+function requestReload() {
+  if (state.busy) { reloadAfterBusy = true; return; }
+  location.reload();
+}
+async function checkAuthChange() {
+  // 前回のポーリングが未完了（Neoタブ側の待機等）なら重複実行しない
+  if (pollInFlight) return;
+  pollInFlight = true;
+  let s;
+  try { s = await api('/api/status?lazy=1'); } catch { s = null; }
+  finally { pollInFlight = false; }
+  const sig = sigOf(s);
+  if (authSig === null) { authSig = sig; return; }
+  if (sig === authSig) { pendingSig = null; pendingN = 0; return; }
+  if (sig === pendingSig && ++pendingN >= 2) { requestReload(); return; }
+  pendingSig = sig; pendingN = 1;
+}
+setInterval(checkAuthChange, 10000);
+window.addEventListener('focus', refreshAuth);
 
 (async () => {
   const s = await refreshAuth();

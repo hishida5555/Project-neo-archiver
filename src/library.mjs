@@ -67,10 +67,10 @@ export class Library {
     return name;
   }
 
-  recordUpload(file, { uuid, name, thumbOk }) {
+  recordUpload(file, { uuid, name, thumbOk, account }) {
     const m = this.meta();
     if (!m.entries[file]) return;
-    (m.entries[file].uploads ||= []).push({ at: new Date().toISOString(), uuid, name, thumb: thumbOk ?? null });
+    (m.entries[file].uploads ||= []).push({ at: new Date().toISOString(), uuid, name, thumb: thumbOk ?? null, account: account || null });
     this.writeMeta(m);
   }
 

@@ -41,6 +41,7 @@ body {
 .lamp--checking { animation: lampPulse 1s infinite alternate; }
 @keyframes lampPulse { from { opacity: .35; } to { opacity: 1; } }
 .app-header__auth { display: flex; align-items: center; gap: 8px; }
+.app-header__label { font-size: 12px; color: var(--muted); }
 button {
   font: inherit;
   color: var(--text);
@@ -149,6 +150,7 @@ button:focus-visible, a:focus-visible, .tabs__tab:focus-visible {
   flex: 1;
 }
 .card {
+  position: relative;
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 8px;
@@ -194,8 +196,35 @@ button:focus-visible, a:focus-visible, .tabs__tab:focus-visible {
 .card__thumb--empty { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 11px; }
 .card__name { font-weight: 600; word-break: break-all; }
 .card__meta { color: var(--muted); font-size: 11px; word-break: break-all; }
-.card__row { display: flex; gap: 6px; align-items: center; }
-.card__row button { font-size: 11px; padding: 2px 8px; }
+.balloon {
+  position: fixed;
+  z-index: 50;
+  width: 240px;
+  background: rgba(30, 33, 40, .97);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11px;
+  color: var(--muted);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .45);
+  pointer-events: none;
+}
+.balloon::before {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: inherit;
+  border: inherit;
+  transform: rotate(45deg);
+}
+.balloon[data-side="r"]::before { left: -5px; top: 14px; border-right: none; border-top: none; }
+.balloon[data-side="l"]::before { right: -5px; top: 14px; border-left: none; border-bottom: none; }
+.balloon[data-side="b"]::before { top: -5px; left: 16px; border-bottom: none; border-right: none; }
+.balloon__line { padding: 1px 0; word-break: break-all; }
+.balloon__line:first-child { color: var(--text); font-weight: 600; }
+.card__row { display: flex; gap: 6px; align-items: center; justify-content: flex-end; }
+.card__row button { font-size: 12px; padding: 5px 14px; }
 .card__row a { font-size: 11px; color: var(--accent); }
 .card__check { display: flex; align-items: center; gap: 6px; }
 .logpane { grid-column: 1 / -1; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }

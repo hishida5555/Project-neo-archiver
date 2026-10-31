@@ -62,23 +62,34 @@ document.addEventListener('click', (e) => {
 }, true);
 
 // ---- ライブラリフォルダ選択 UI ----
-// 未設定/未許可のときだけ強調表示にし、設定済みなら通常色に戻す（フォルダ名は title で確認可）
+// 未設定/未許可のときだけ強調表示にし、設定済みならフォルダ名をボタンに表示する。
+const shimLog = (s) => {
+  const log = document.getElementById('log');
+  if (log) log.textContent += `[${new Date().toLocaleTimeString()}] ${s}\n`;
+};
 const syncLibUI = async () => {
   const btn = document.getElementById('btnLibDir');
   if (!btn) return;
   const h = await lib.storedDir();
-  const ok = h && (await h.queryPermission({ mode: 'readwrite' })) === 'granted';
+  let ok = false;
+  try { ok = h && (await h.queryPermission({ mode: 'readwrite' })) === 'granted'; } catch {}
   btn.classList.toggle('accent', !ok);
+  btn.textContent = ok ? h.name : 'Select Local Library Folder';
   btn.title = h ? `Library: ${h.name}` : 'Choose the local library folder';
 };
 document.getElementById('btnLibDir')?.addEventListener('click', async () => {
   try {
-    let h = await lib.ensureDir(true);
-    if (!h) h = await lib.pickDir();
-    await lib.ensureDir(true);
+    if (typeof window.showDirectoryPicker !== 'function') throw new Error('File System Access API is not available in this browser');
+    const h = await lib.pickDir();
+    shimLog(`library: ${h.name}`);
   } catch (e) {
-    const log = document.getElementById('log');
-    if (log) log.textContent += `[${new Date().toLocaleTimeString()}] library: ${e.message}\n`;
+    if (e?.name === 'AbortError') { await syncLibUI(); return; } // ユーザキャンセル
+    // ピッカーが開けない環境向けに、既存ハンドルの権限再要求を試みる
+    try {
+      const h = await lib.ensureDir(true);
+      if (h) { shimLog(`library: ${h.name} (permission restored)`); await syncLibUI(); return; }
+    } catch {}
+    shimLog(`library: ${e.message || e}`);
   }
   await syncLibUI();
 });

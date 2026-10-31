@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { NeoPage, NEO_ORIGIN } from './neo-page.mjs';
+import { listTargets } from './cdp.mjs';
 import { Library } from './library.mjs';
 import { json, readBody, safeName, uniqueName } from './util.mjs';
 
@@ -30,8 +31,15 @@ const serialize = (fn) => { const p = chain.then(fn, fn); chain = p.catch(() => 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.ico': 'image/x-icon' };
 
 // ---- API ハンドラ ----
-async function apiStatus() {
+async function apiStatus(body) {
   try {
+    // lazy=1: ポーリング用。Neoタブが無い場合は生成せず未接続を返す
+    if (body?.lazy) {
+      const targets = await listTargets(CDP);
+      if (!targets.some((t) => t.type === 'page' && String(t.url).startsWith(NEO_ORIGIN))) {
+        return { ok: false, cdp: true, error: 'no Neo tab' };
+      }
+    }
     const auth = await neo.ensure();
     return { ok: true, cdp: true, auth };
   } catch (e) {
@@ -70,6 +78,9 @@ async function apiLibrary() {
 async function apiUpload(body) {
   const files = Array.isArray(body.files) ? body.files.slice(0, 500) : [];
   const remote = await neo.listProjects();
+  // アップロード先アカウント（meta.json の uploads[] に記録してポップオーバーに出す）
+  let account = null;
+  try { const a = await neo.ensure(); account = a.displayName || a.userUuid || null; } catch {}
   const taken = new Set(remote.map((e) => e.name));
   const meta = lib.meta();
   const results = [];
@@ -92,7 +103,7 @@ async function apiUpload(body) {
           thumbOk = !!r.ok;
         }
       }
-      lib.recordUpload(f, { uuid: created.uuid, name, thumbOk });
+      lib.recordUpload(f, { uuid: created.uuid, name, thumbOk, account });
       results.push({ file: f, ok: true, uuid: created.uuid, name, renamed: name !== requested ? requested : undefined, thumb: thumbOk });
     } catch (e) {
       results.push({ file: f, ok: false, error: String(e.message || e) });
@@ -157,7 +168,7 @@ const server = http.createServer(async (req, res) => {
 
     const key = method + ' ' + u.pathname;
     if (api[key]) {
-      const body = req.method === 'POST' ? await readBody(req) : {};
+      const body = req.method === 'POST' ? await readBody(req) : Object.fromEntries(u.searchParams);
       const out = await serialize(() => api[key](body));
       return json(res, 200, out, securityHeaders);
     }
